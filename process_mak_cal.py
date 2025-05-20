@@ -7,7 +7,7 @@ import sys
 import os
 
 
-def process_ics_file(input_file, output_file, timezone_str):
+def process_ics_file(input_file, output_file, timezone_str, after_date=None):
     # Load the time zone
     target_timezone = pytz.timezone(timezone_str)
 
@@ -35,6 +35,12 @@ def process_ics_file(input_file, output_file, timezone_str):
 
     for event in calendar.events:
         # Filter events with the specified keywords
+        if after_date is not None:
+            # Convert event begin time to the target timezone
+            event_begin_local = event.begin.astimezone(target_timezone)
+            # Check if the event is after the specified date
+            if event_begin_local < after_date:
+                continue
         if any(keyword in event.name for keyword in ["Call", "Education", "Evolve", "Project", "DAC", "ALPS"]):
             # Convert event to the target timezone
             event_begin_local = event.begin.astimezone(target_timezone)
@@ -71,15 +77,20 @@ def download_file(url, filename):
 # Example usage
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print(f"Usage: python3 process_make_cal.py [output_file_name]")
+    if len(sys.argv) != 3:
+        print(f"Usage: python3 process_make_cal.py [output_file_name] [after_date (mm/dd/yyyy)]")
         exit(-1)
-    makela_calendar_url="https://www.amion.com/cgi-bin/ocs?Vcal=7.1641&Lo=resident%40su&Jd=9967"
+    makela_calendar_url="https://www.amion.com/cgi-bin/ocs?Vcal=7.1641&Lo=resident%40su&Jd=10393"
     calendar_file="resident_su1641.ics"
     download_file(makela_calendar_url, calendar_file)
     timezone_str = "America/Los_Angeles"  # Replace with your target timezone
     output_file = sys.argv[1]
-    process_ics_file(calendar_file, output_file, timezone_str)
+    # Parse the after_date parameter from mm/dd/yyyy format
+    date_str = sys.argv[2]
+    after_date = datetime.strptime(date_str, '%m/%d/%Y')
+    # Make the date timezone-aware by setting it to the target timezone
+    after_date = pytz.timezone(timezone_str).localize(after_date)
+    process_ics_file(calendar_file, output_file, timezone_str, after_date)
     os.remove(calendar_file)
     print(f"Calendar successfully filtered and saved to {output_file}.") 
-    print(f"Import the {output_file} in google calendar, the native apple calendar app doesn't work for some reason")
+    print(f"Import the {output_file} in into apple calendar, google calendar is not working")
